@@ -8,12 +8,53 @@ code.
 Polymode also provides extensible facilities for external literate programming
 tools such as exporting, weaving and tangling.
 
-- [Instalation](#intstalation)
+- [High-level view](#high-level-view)
+- [Installation](#installation)
 - [Polymodes Activation](#activation-of-polymodes)
 - [Basic Usage](#basic-usage)
 - [Warnings](#warning)
 - [Development](modes)
 - [Screenshots](#Screenshots)
+
+## High-level view
+
+`polymode` is a tool that enables multiple different Emacs modes to
+apply to different substrings (positions? spans?) of a single Emacs
+buffer.  Some features of polymode include:
+
+  - Each location within the buffer is associated with a *polymode*.
+    The polymode mimics a standard Emacs major mode such as
+    `tex-mode`, `text-mode`, `c-mode`, `scheme-mode`, and so on.
+    The intended effect is that each location within the buffer
+    behaves as if it has its own mode.
+
+  - A polymode is sensitive to the values of Emacs variables in the
+    same way as the major mode that it mimics.  [NOTE: THERE SHOULD BE
+    SOME VOCABULARY---A NAME--- FOR "THE MAJOR MODE A POLYMODE MIMICS."]
+
+  - When multiple locations in the buffer are associated with the same
+    polymode, those locations share values of all variables, including
+    buffer-local variables, of that polymode.
+
+  - At all times, `polymode` makes sure that Emacs behaves "as if" it
+    is in the major mode that mimics the polymode associated with
+    `point`.  In particular, at all times, the keybindings that are
+    active are the ones defined by the major mode that is mimicked by
+    the polymode that is associated with point. [UGH]
+
+  - `polymode` interoperates with `font-lock-mode` so that each part
+    of the visible window is syntax-highlighted according to the
+    conventions of the polymode associated with that part of the
+    window (which are the conventions of the major mode that the
+    polymode mimics).
+
+  - **How does `polymode` know which polymode to associate with a
+    location?**  (THERE IS SOME SORT OF PARSING GOING ON.)
+
+  - **How (and how often) is this information updated?**
+      
+    
+
 
 ## Installation
 
