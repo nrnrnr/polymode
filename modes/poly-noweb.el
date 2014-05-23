@@ -31,34 +31,34 @@
 
 (require 'polymode)
 
-(defcustom pm-config/noweb
-  (pm-config-one "noweb"
-                 :basemode 'pm-base/latex
-                 :chunkmode 'pm-chunk/noweb
-                 :exporters '(pm-exporter/latexmk pm-exporter/pdflatex)
-                 :map '(("<" . poly-noweb-electric-<)))
+(defcustom pm-poly/noweb
+  (pm-polymode-one "noweb"
+                   :hostmode 'pm-host/latex
+                   :innermode 'pm-inner/noweb
+                   :exporters '(pm-exporter/latexmk pm-exporter/pdflatex)
+                   :map '(("<" . poly-noweb-electric-<)))
   "Noweb typical configuration"
-  :group 'polymode
+  :group 'polymodes
   :type 'object)
 
-(defcustom  pm-chunk/noweb
-  (pm-chunkmode "noweb"
-                :head-reg  "<<\\(.*\\)>>="
-                :tail-reg    "\\(@ +%def .*\\)$\\|\\(@[ \n]\\)")
+(defcustom  pm-inner/noweb
+  (pm-hbtchunkmode "noweb"
+                   :head-reg  "<<\\(.*\\)>>="
+                   :tail-reg    "\\(@ +%def .*\\)$\\|\\(@[ \n]\\)")
   "Noweb typical chunk."
-  :group 'polymode
+  :group 'innermodes
   :type 'object)
 
 ;;;###autoload (autoload 'poly-noweb-mode "poly-noweb")
-(define-polymode poly-noweb-mode pm-config/noweb)
+(define-polymode poly-noweb-mode pm-poly/noweb)
 
 (defun poly-noweb-electric-< (arg)
   "Auto insert noweb chunk if at bol followed by white space.
 If given an numerical argument, it simply insert `<'. Otherwise,
-if at the beginning of a line in a base chunk insert \"<<>>=\", a
+if at the beginning of a line in a host chunk insert \"<<>>=\", a
 closing \"@\" and a newline if necessary."
   (interactive "P")
-  (if (or arg (not (eq pm/type 'base)))
+  (if (or arg (not (eq pm/type 'host)))
       (self-insert-command (if (numberp arg) arg 1))
     (if (not (looking-back "^[ \t]*"))
         (self-insert-command 1)
@@ -81,12 +81,12 @@ closing \"@\" and a newline if necessary."
 
 (defcustom pm-exporter/latexmk
   (pm-shell-exporter "latexmk"
-                   :from
-                   '(("latex" "\\.tex\\'" "LaTeX" "latexmk -jobname=%O %t %i"))
-                   :to
-                   '(("dvi"  	"dvi"  "DVI" "-dvi")
-                     ("pdf"  	"pdf"  "PDF" "-pdf")
-                     ("ps"  	"ps"  "PS" "-ps")))
+                     :from
+                     '(("latex" "\\.tex\\'" "LaTeX" "latexmk -jobname=%O %t %i"))
+                     :to
+                     '(("dvi"  	"dvi"  "DVI" "-dvi")
+                       ("pdf"  	"pdf"  "PDF" "-pdf")
+                       ("ps"  	"ps"  "PS" "-ps")))
   "Shell latexmk dvi, ps and pdf exporter."
   :group 'polymode-export
   :type 'object)

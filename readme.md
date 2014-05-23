@@ -2,11 +2,11 @@
 
 Polymode is an emacs package that offers generic support for multiple major
 modes inside a single emacs buffer. It is lightweight, object oriented and
-highly extensible. Creating new polymodes commonly takes just several lines of
-code.
+highly extensible. Creating new polymodes typically takes a
+[few](modes#multiple-automatically-detected-innermodes) lines of code.
 
 Polymode also provides extensible facilities for external literate programming
-tools such as exporting, weaving and tangling.
+tools for exporting, weaving and tangling.
 
 - [High-level view](#high-level-view)
 - [Installation](#installation)
@@ -65,7 +65,7 @@ buffer.  Some features of polymode include:
 
 <kbd>M-x</kbd> `package-install` `polymode`.
 
-### Manually for Development
+### Manually
 
 ```sh
 git clone https://github.com/vitoshka/polymode.git
@@ -88,11 +88,11 @@ Require any polymode bundles that you are interested in. For example:
 
 ## Activation of Polymodes
 
-Polymodes are functions just like ordinary emacs modes. The can be used in place
-of emacs major or minor modes alike. There are two main ways to automatically
-activate  emacs (poly)modes:
+Polymodes are functions, just like ordinary emacs modes. The can be used in
+place of emacs major or minor modes alike. There are two main ways to
+automatically activate emacs (poly)modes:
 
-   1. _By registering a file extension by adding modes to `auto-mode-alist`_:
+ 1. _By registering a file extension by adding modes to `auto-mode-alist`_:
 
     ```lisp
     ;;; MARKDOWN
@@ -103,20 +103,19 @@ activate  emacs (poly)modes:
     (add-to-list 'auto-mode-alist '("\\.Rnw" . poly-noweb+r-mode))
     (add-to-list 'auto-mode-alist '("\\.Rmd" . poly-markdown+r-mode))
     ```
-
     See [polymode-configuration.el](polymode-configuration.el) for more
     examples.
 
-2. _By setting local mode variable in you file_:
+ 2. _By setting local mode variable in you file_:
    
    ```c++
    // -*- mode: poly-C++R -*-
    ```
-   or 
+    or
+
    ```sh
    ## -*- mode: poly-brew+R; -*-
    ```
-
 
 ## Basic Usage
 
@@ -168,15 +167,15 @@ polymodes' maps:
 
 Some things still don't work as expected. For example:
     
-   * To kill a polymode buffer you will have position the cursor in the base mode buffer. 
+   * To kill a polymode buffer you will have position the cursor in the host mode buffer.  
    * Customization interface is not working as expected (an eieio bug) and is
-     not tested. 
+     not even tested.
    * Indentation and font-lock is not always right and requires some more
      tweaking. This is especially true for complex modes like `c-mode`.
 
 ## Developing with Polymode
 
-See [development](modes).
+For the relevant terminology and development info see these [docs](modes).
 
 ## Screenshots
 

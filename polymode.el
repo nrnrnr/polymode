@@ -31,36 +31,41 @@
 ;; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
 ;;; Commentary:
-;;  Extensible, fast, objected oriented multimode specifically designed for
-;;  literate programming. Extinsible support for weaving, tangling and export.
+;;
+;;  Extensible, fast, objected-oriented multimode specifically designed for
+;;  literate programming. Extensible support for weaving, tangling and export.
 ;; 
 ;;   Usage: https://github.com/vitoshka/polymode
 ;;   
-;;   Design new polymodes: https://github.com/vitoshka/polymode/modes
+;;   Design new polymodes: https://github.com/vitoshka/polymode/tree/master/modes
 ;;
 ;; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+;;; Code:
 
 (require 'polymode-common)
 (require 'polymode-classes)
 (require 'polymode-methods)
 (require 'polymode-export)
 (require 'polymode-weave)
+;; load all core polymode and host objects
+(require 'poly-base)
 
 (defgroup polymode nil
   "Object oriented framework for multiple modes based on indirect buffers"
   :link '(emacs-commentary-link "polymode")
   :group 'tools)
 
-(defgroup polymode-configs nil
+(defgroup polymodes nil
   "Polymode Configuration Objects"
   :group 'polymode)
 
-(defgroup polymode-basemodes nil
-  "Polymode Base Submode Objects"
+(defgroup hostmodes nil
+  "Polymode Host Chunkmode Objects"
   :group 'polymode)
 
-(defgroup polymode-chunkmodes nil
-  "Polymode Submode Objects"
+(defgroup innermodes nil
+  "Polymode Chunkmode Objects"
   :group 'polymode)
 
 (defvar polymode-select-mode-hook nil ;; not used yet
@@ -197,7 +202,7 @@ Return, how many chucks actually jumped over."
   "Kill current chunk"
   (interactive)
   (pcase (pm/get-innermost-span)
-    (`(,(or `nil `base) ,beg ,end ,_) (delete-region beg end))
+    (`(,(or `nil `host) ,beg ,end ,_) (delete-region beg end))
     (`(body ,beg ,end ,_)
      (goto-char beg)
      (pm--kill-span '(body))
@@ -260,7 +265,7 @@ Return, how many chucks actually jumped over."
 ;; delimiters -- you have to consider other possible regions between them.  For
 ;; now, we do the calculation each time, scanning outwards from point.
 (defun pm/get-innermost-span (&optional pos)
-  (pm/get-span pm/config pos))
+  (pm-get-span pm/polymode pos))
 
 ;; This function is for debug convenience only in order to avoid limited debug
 ;; context in polymode-select-buffer
@@ -269,7 +274,7 @@ Return, how many chucks actually jumped over."
   (unless pm--ignore-post-command-hook
     (let ((*span* (pm/get-innermost-span))
           (pm--can-move-overlays t))
-      (pm/select-buffer (car (last *span*)) *span*))))
+      (pm-select-buffer (car (last *span*)) *span*))))
 
 (defun polymode-select-buffer ()
   "Select the appropriate (indirect) buffer corresponding to point's context.
@@ -300,7 +305,7 @@ the current innermost span."
                     (< nr count)))
       (setq *span* (pm/get-innermost-span)
             nr (1+ nr))
-      (pm/select-buffer (car (last *span*)) *span*) ;; object and type
+      (pm-select-buffer (car (last *span*)) *span*) ;; object and type
       (goto-char (nth 1 *span*))
       (funcall fun)
       (if backward?
@@ -348,7 +353,7 @@ in polymode buffers."
                  (when parse-sexp-lookup-properties
                    (pm--comment-region 1 sbeg))
                  (condition-case err
-                     (if (oref pm/submode :font-lock-narrow)
+                     (if (oref pm/chunkmode :font-lock-narrow)
                          (save-restriction
                            ;; fixme: optimization oportunity: Cache chunk state
                            ;; in text properties. For big chunks font-lock
@@ -364,11 +369,11 @@ in polymode buffers."
                                    (error-message-string err) beg end)))
                  (when parse-sexp-lookup-properties
                    (pm--uncomment-region 1 sbeg)))
-               (pm--adjust-chunk-face sbeg send (pm/get-adjust-face pm/submode))
+               (pm--adjust-chunk-face sbeg send (pm-get-adjust-face pm/chunkmode))
                ;; might be needed by external applications like flyspell
-               ;; fixme: this should be in a more generic place like pm/get-span
+               ;; fixme: this should be in a more generic place like pm-get-span
                (put-text-property sbeg send 'chunkmode
-                                  (object-of-class-p pm/submode 'pm-chunkmode))
+                                  (object-of-class-p pm/chunkmode 'pm-hbtchunkmode))
                ;; even if failed, set to t to avoid infloop
                (put-text-property beg end 'fontified t)))
            beg end)
@@ -406,7 +411,7 @@ is not reinitialized if it coincides with the :mode slot of
 CONFIG object or if the :mode slot is nil.
 
 BODY contains code to be executed after the complete
-  initialization of the polymode (`pm/initialize') and before
+  initialization of the polymode (`pm-initialize') and before
   running MODE-hook. Before the actual body code, you can write
   keyword arguments, i.e. alternating keywords and values.  The
   following special keywords are supported:
@@ -487,18 +492,18 @@ BODY contains code to be executed after the complete
                               (oref pi :map)))
                (if (and (symbolp map)
                         (keymapp (symbol-value map)))
-                   ;; if one of the parent's :map is a keymap, use it as our
-                   ;; keymap and stop the descent:
+                   ;; If one of the parent's :map is a keymap, use it as our
+                   ;; keymap and stop further descent.
                    (setq keymap  (symbol-value map)
                          pi nil)
-                 ;; go down to next parent and append the list to key-alist
+                 ;; Descend to next parent and append the key list to key-alist
                  (setq pi (and (slot-boundp pi :parent-instance)
                                (oref pi :parent-instance))
                        key-alist (append key-alist map))))))
 
          (unless keymap
            ;; If we couldn't figure out the original keymap:
-           (setq keymap 'polymode-mode-map))
+           (setq keymap polymode-mode-map))
 
          ;; Define the minor-mode keymap:
          (defvar ,keymap-sym
@@ -511,10 +516,10 @@ BODY contains code to be executed after the complete
                 (interactive)
                 (unless ,mode
                   (let ((,last-message (current-message)))
-                    (unless pm/config ;; don't reinstall for time being
+                    (unless pm/polymode ;; don't reinstall for time being
                       (let ((config (clone ,config)))
                         (oset config :minor-mode ',mode)
-                        (pm/initialize config)))
+                        (pm-initialize config)))
                     ;; set our "minor" mode
                     (setq ,mode t)
                     ,@body
@@ -531,13 +536,12 @@ BODY contains code to be executed after the complete
                 ;; Return the new setting.
                 ,mode)
          
-         (add-minor-mode ',mode lighter ,(or keymap-sym keymap))))))
+         (add-minor-mode ',mode lighter ,keymap-sym)))))
 
 
 (define-minor-mode polymode-minor-mode
   "Polymode minor mode, used to make everything work."
   nil " PM" polymode-mode-map)
-
 
 
 ;;; FONT-LOCK

@@ -1,20 +1,20 @@
 (require 'polymode-common)
 
 ;;; ROOT CLASS
-(defclass polymode (eieio-instance-inheritor) ()
+(defclass pm-root (eieio-instance-inheritor) ()
   "Root polymode class.")
 
 
 ;;; CONFIG
-(defclass pm-config (polymode) 
-  ((basemode
-    :initarg :basemode
-    :initform 'pm-base/blank
+(defclass pm-polymode (pm-root) 
+  ((hostmode
+    :initarg :hostmode
+    :initform 'pm-host/blank
     :type symbol
     :custom symbol
     :documentation
-    "Symbol pointing to an object of class pm-submode
-    representing the base submode.")
+    "Symbol pointing to an object of class pm-chunkmode
+    representing the host chunkmode.")
    (minor-mode
     :initarg :minor-mode
     :initform 'polymode-minor-mode
@@ -23,7 +23,8 @@
     :documentation
     "Symbol pointing to minor-mode function that should be
     activated in all buffers (base and indirect). This is a
-    \"glue\" mode and is `polymode-minor-mode' by default.")
+    \"glue\" mode and is `polymode-minor-mode' by default. You
+    will rarely need to change this.")
    (lighter
     :initarg :lighter
     :initform " PM"
@@ -68,14 +69,15 @@
     :type (or symbol list)
     "Has a similar role as the :keymap argument in
      `define-polymode' with the difference that this argument is
-     inherited through cloning but :keymap argument is not. That
+     inherited through cloning, but :keymap argument is not. That
      is, child objects derived through clone will inherit
-     the :map argument of its parents as follows. If :map is nil
-     or an alist of keys, the parent is inspected for :map
-     argument and the keys are merged. If :map is a symbol, it
-     should be a keymap, in which case this keymap is used and no
-     parents are further inspected for :map slot. If :map is an
-     alist it should be suitable to be passed to
+     the :map argument of its parents through the following
+     scheme: if :map is nil or an alist of keys, the parent is
+     inspected for :map argument and the keys are merged
+     recursively from parent to parent till a symbol :map slot is
+     met. If :map is a symbol, it must be a keymap, in which case
+     this keymap is used and no parents are further inspected
+     for :map slot. If :map is an alist it must be suitable for
      `easy-mmode-define-keymap'.")
    (init-functions
     :initarg :init-functions
@@ -87,17 +89,18 @@
      hooks first. So, if current config object C inherits from object
      B, which in turn inherits from object A. Then A's init-functions
      are called first, then B's and then C's.
-
      Either customize this slot or use `object-add-to-list' function.")
-   (-basemode
-    :type (or null pm-submode)
+
+   (-hostmode
+    :type (or null pm-chunkmode)
     :documentation
-    "Instantiated submode object of class `pm-submode'. Dynamically populated.")
-   (-chunkmodes
+    "Dynamically populated `pm-chunkmode' object.")
+   (-innermodes
     :type list
     :initform '()
     :documentation
-    "List of submodes objects that inherit from `pm-chunkmode'. Dynamically populated.")
+    "Dynamically populated list of chunkmodes objects that
+    inherit from `pm-hbtchunkmode'.")
    (-buffers
     :initform '()
     :type list
@@ -111,61 +114,61 @@
     value pairs into this list."))
   
   "Configuration for a polymode. Each polymode buffer contains a local
-variable `pm/config' instantiated from this class or a subclass
+variable `pm/polymode' instantiated from this class or a subclass
 of this class.")
 
 
-(defclass pm-config-one (pm-config)
-  ((chunkmode
-    :initarg :chunkmode
+(defclass pm-polymode-one (pm-polymode)
+  ((innermode
+    :initarg :innermode
     :type symbol
     :custom symbol
     :documentation
-    "Symbol of the submode. At run time this object is cloned
-     and placed in -chunkmodes slot."))
+    "Symbol of the chunkmode. At run time this object is cloned
+     and placed in -innermodes slot."))
   
   "Configuration for a simple polymode that allows only one
-submode. For example noweb.")
+innermode. For example noweb.")
 
 
-(defclass pm-config-multi (pm-config)
-  ((chunkmodes
-    :initarg :chunkmodes
+(defclass pm-polymode-multi (pm-polymode)
+  ((innermodes
+    :initarg :innermodes
     :type list
     :custom list
     :initform nil
     :documentation
-    "List of names of the submode objects that are associated
+    "List of names of the chunkmode objects that are associated
      with this configuration. At initialization time, all of
-     these are cloned and plased in -chunkmodes slot."))
+     these are cloned and plased in -innermodes slot."))
   
   "Configuration for a polymode that allows multiple known in
-advance submodes.")
+advance innermodes.")
 
 
-(defclass pm-config-multi-auto (pm-config-multi)
-  ((auto-chunkmode
-    :initarg :auto-chunkmode
+(defclass pm-polymode-multi-auto (pm-polymode-multi)
+  ((auto-innermode
+    :initarg :auto-innermode
     :type symbol
     :custom symbol
     :documentation
-    "Name of pm-chunkmode-auto object (a symbol). At run time
-     this object is cloned and placed in -auto-chunkmodes with
+    "Name of pm-hbtchunkmode-auto object (a symbol). At run time
+     this object is cloned and placed in -auto-innermodes with
      coresponding :mode slot initialized at run time.")
-   (-auto-chunkmodes
+   (-auto-innermodes
     :type list
     :initform '()
     :documentation
     "List of chunkmode objects that are auto-generated in
-    pm/get-span method for this class."))
+    `pm-get-span' method for this class."))
   
-  "Configuration for a polymode that allows multiple submodes
+  "Configuration for a polymode that allows multiple innermodes
 that are not known in advance. Examples are org-mode and markdown.")
 
 
 
-;;; SUBMODE CLASSES
-(defclass pm-submode (polymode)
+;;; CHUNKMODE CLASSES
+(defclass pm-chunkmode (pm-root)
   ((mode
     :initarg :mode
     :type symbol
@@ -212,33 +215,31 @@ that are not known in advance. Examples are org-mode and markdown.")
     :type (or null buffer)
     :initform nil))
   
-  "Representatioin of the submode object.")
+  "Representatioin of the chunkmode object.")
 
-(defclass pm-basemode (pm-submode)
+(defclass pm-bchunkmode (pm-chunkmode)
   ()
-  "Representation of the basemode objects. Basemodes are the
+  "Representation of the hostmode objects. Basemodes are the
   main (parent) modes in the buffer. For example for a the
-  web-mdoe the basemode is `html-mode', for nowweb mode the base
+  web-mdoe the hostmode is `html-mode', for nowweb mode the host
   mode is usually `latex-mode', etc.")
 
-(defclass pm-chunkmode (pm-submode)
-  ((adjust-face
-    :initform 2)
-   (head-mode
+(defclass pm-hbtchunkmode (pm-chunkmode)
+  ((head-mode
     :initarg :head-mode
     :type symbol
     :initform 'fundamental-mode
     :custom symbol
     :documentation
     "Chunks' header mode. If set to 'body, the head is considered
-    part of the chunk body. If set to 'base, head is considered
-    part of the including base mode.")
+    part of the chunk body. If set to 'host, head is considered
+    part of the including host mode.")
    (-head-buffer
     :type (or null buffer)
     :initform nil
     :documentation
     "This buffer is set automatically to -buffer if :head-mode is
-    'body, and to base-buffer if :head-mode is 'base")
+    'body, and to base-buffer if :head-mode is 'host")
    (tail-mode
     :initarg :tail-mode
     :type symbol
@@ -262,6 +263,8 @@ that are not known in advance. Examples are org-mode and markdown.")
     :type (or string symbol)
     :custom (or string symbol)
     :documentation "Regexp for chunk end (aka tail)")
+   (adjust-face
+    :initform 2)
    (head-adjust-face
     :initarg :head-adjust-face
     :initform font-lock-type-face
@@ -278,9 +281,9 @@ that are not known in advance. Examples are org-mode and markdown.")
     "Can be a number, list or face. If nil, take the
 configuration from :head-adjust-face."))
   
-  "Representation of an inner (aka chunk) submode in a buffer.")
+  "Representation of an inner (aka chunk) chunkmode in a buffer.")
 
-(defclass pm-chunkmode-auto (pm-chunkmode)
+(defclass pm-hbtchunkmode-auto (pm-hbtchunkmode)
   ((retriever-regexp
     :initarg :retriever-regexp
     :type (or null string)
@@ -288,7 +291,7 @@ configuration from :head-adjust-face."))
     :initform nil
     :documentation
     "Regexp that is used to retrive the modes symbol from the
-    head of the submode chunk. fixme: elaborate")
+    head of the chunkmode chunk. fixme: elaborate")
    (retriever-num
     :initarg :retriever-num
     :type integer
@@ -303,8 +306,8 @@ configuration from :head-adjust-face."))
     :initform nil
     :documentation
     "Function name that is used to retrive the modes symbol from
-    the head of the submode chunk. fixme: elaborate"))
+    the head of the chunkmode chunk. fixme: elaborate"))
 
-  "Representation of an inner submode")
+  "Representation of an inner chunkmode")
 
 (provide 'polymode-classes)

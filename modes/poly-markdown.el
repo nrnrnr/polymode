@@ -32,34 +32,34 @@
 (require 'polymode)
 (require 'markdown-mode)
 
-(defcustom pm-base/markdown
-  (pm-basemode "Markdown"
+(defcustom pm-host/markdown
+  (pm-bchunkmode "Markdown"
                :mode 'markdown-mode)
-  "Markdown base submode"
-  :group 'polymode-basemodes
+  "Markdown host chunkmode"
+  :group 'hostmodes
   :type 'object)
 
-(defcustom  pm-chunk/markdown
-  (pm-chunkmode-auto "markdown"
+(defcustom  pm-inner/markdown
+  (pm-hbtchunkmode-auto "markdown"
                      :head-reg "^[ \t]*```[{ \t]*\\w.*$"
                      :tail-reg "^[ \t]*```[ \t]*$"
-                     :retriever-regexp "```[ \t]*{?\\(\\w+\\)"
+                     :retriever-regexp "```[ \t]*{?\\(\\(\\w\\|\\s_\\)*\\)"
                      :font-lock-narrow t)
   "Markdown typical chunk."
-  :group 'polymode-chunkmodes
+  :group 'innermodes
   :type 'object)
 
-(defcustom pm-config/markdown
-  (pm-config-multi-auto "markdown"
-                        :basemode 'pm-base/markdown
-                        :auto-chunkmode 'pm-chunk/markdown
+(defcustom pm-poly/markdown
+  (pm-polymode-multi-auto "markdown"
+                        :hostmode 'pm-host/markdown
+                        :auto-innermode 'pm-inner/markdown
                         :init-functions '(poly-markdown-remove-markdown-hooks))
   "Markdown typical configuration"
-  :group 'polymode-configs
+  :group 'polymodes
   :type 'object)
 
 ;;;###autoload  (autoload 'poly-markdown-mode "poly-markdown")
-(define-polymode poly-markdown-mode pm-config/markdown)
+(define-polymode poly-markdown-mode pm-poly/markdown)
 
 ;;; FIXES:
 (defun poly-markdown-remove-markdown-hooks ()
